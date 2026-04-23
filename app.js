@@ -176,10 +176,10 @@ function renderLandingPage() {
       <main class="shell center-shell">
         <section class="panel hero-panel">
           <span class="eyebrow">Secure Delivery</span>
-          <h1>账号交付网页已就绪</h1>
-          <p>这是一个适配 Vercel 与 Postgres 的账号交付项目。不同用户会拿到不同专属链接，数据存进数据库，到期后自动失效。</p>
+          <h1>账号交付管理</h1>
+          <p>这是一个保密安全性极高的项目，每位用户只能获取到唯一链接用于访问使用账号</p>
           <div class="hero-actions">
-            <a class="button primary" href="/admin">打开管理页</a>
+            <a class="button primary" href="/">购买获取账号</a>
           </div>
         </section>
       </main>
@@ -195,7 +195,7 @@ function renderAdminLoginPage() {
         <section class="panel narrow-panel">
           <span class="eyebrow">Admin</span>
           <h1>管理员验证</h1>
-          <p>请在地址后追加密钥访问，例如：<code>/admin?key=${escapeHtml(ADMIN_SECRET)}</code></p>
+          <p>请输入正确的密钥</p>
         </section>
       </main>
     `
@@ -255,6 +255,10 @@ function renderAdminPage(records, requestUrl) {
             <label>
               <span>自定义 HTML 内容</span>
               <textarea name="customHtml" rows="10" placeholder="<div class='your-box'>这里可以直接填写 HTML 代码</div>"></textarea>
+            </label>
+            <label>
+              <span>自定义 HTML 补充内容</span>
+              <textarea name="customHtml" rows="20" placeholder="<div class='your-box'>这里可以直接填写 HTML 代码</div>"></textarea>
             </label>
             <label>
               <span>有效时长（小时）</span>
