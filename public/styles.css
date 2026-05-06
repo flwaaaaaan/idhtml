@@ -181,6 +181,14 @@ p {
   padding: 14px;
 }
 
+.helper-box {
+  background: #f6ede2 !important;
+}
+
+.helper-copy p:last-child {
+  margin-bottom: 0;
+}
+
 .admin-form span {
   font-size: 14px;
   font-weight: 700;
@@ -199,6 +207,7 @@ textarea {
 
 textarea {
   resize: vertical;
+  min-height: 140px;
 }
 
 .record-list {
@@ -220,6 +229,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 20px;
   background: var(--panel-strong);
+  overflow-x: auto;
 }
 
 .custom-html-block > :first-child {
@@ -228,6 +238,91 @@ textarea {
 
 .custom-html-block > :last-child {
   margin-bottom: 0;
+}
+
+.render-block {
+  margin-top: 18px;
+}
+
+.render-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.render-head span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.render-head strong {
+  font-size: 14px;
+}
+
+.content-frame {
+  width: 100%;
+  min-height: 720px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(45, 36, 28, 0.02);
+}
+
+.prose-block {
+  line-height: 1.8;
+}
+
+.prose-block h1,
+.prose-block h2,
+.prose-block h3,
+.prose-block h4,
+.prose-block h5,
+.prose-block h6 {
+  margin-bottom: 0.7em;
+}
+
+.prose-block ul,
+.prose-block ol {
+  padding-left: 1.4em;
+}
+
+.prose-block pre {
+  overflow-x: auto;
+  padding: 14px;
+  border-radius: 16px;
+  background: #2f2823;
+  color: #fff4e9;
+}
+
+.prose-block code {
+  border-radius: 8px;
+}
+
+.prose-block table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.prose-block th,
+.prose-block td {
+  padding: 10px 12px;
+  border: 1px solid rgba(45, 36, 28, 0.12);
+}
+
+.prose-block img,
+.prose-block iframe,
+.prose-block video {
+  max-width: 100%;
+}
+
+.prose-block blockquote {
+  margin-left: 0;
+  padding-left: 16px;
+  border-left: 4px solid rgba(204, 90, 44, 0.35);
+  color: var(--muted);
 }
 
 .record-main {
