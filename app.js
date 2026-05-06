@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { marked } = require("marked");
 const {
   createRecord,
   deleteRecordById,
@@ -12,6 +13,11 @@ const {
 
 const PUBLIC_DIR = path.join(__dirname, "public");
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "admin123";
+
+marked.setOptions({
+  gfm: true,
+  breaks: true
+});
 
 async function handleRequest(req, res) {
   try {
@@ -176,10 +182,10 @@ function renderLandingPage() {
       <main class="shell center-shell">
         <section class="panel hero-panel">
           <span class="eyebrow">Secure Delivery</span>
-          <h1>账号交付管理</h1>
-          <p>这是一个保密安全性极高的项目，每位用户只能获取到唯一链接用于访问使用账号</p>
+          <h1>账号交付网页已就绪</h1>
+          <p>这是一个适配 Vercel 与 Postgres 的账号交付项目。不同用户会拿到不同专属链接，数据存进数据库，到期后自动失效。</p>
           <div class="hero-actions">
-            <a class="button primary" href="/">购买获取账号</a>
+            <a class="button primary" href="/admin">打开管理页</a>
           </div>
         </section>
       </main>
@@ -195,7 +201,7 @@ function renderAdminLoginPage() {
         <section class="panel narrow-panel">
           <span class="eyebrow">Admin</span>
           <h1>管理员验证</h1>
-          <p>请输入正确的密钥</p>
+          <p>请在地址后追加密钥访问，例如：<code>/admin?key=${escapeHtml(ADMIN_SECRET)}</code></p>
         </section>
       </main>
     `
@@ -215,7 +221,7 @@ function renderAdminPage(records, requestUrl) {
                 <p><strong>账号：</strong>${escapeHtml(item.account)}</p>
                 <p><strong>密码：</strong>${escapeHtml(item.password)}</p>
                 <p><strong>备注：</strong>${escapeHtml(item.note || "-")}</p>
-                <p><strong>自定义 HTML：</strong>${item.customHtml ? "已填写" : "未填写"}</p>
+                <p><strong>自定义内容：</strong>${item.customHtml ? describeContentMode(item.customHtml) : "未填写"}</p>
                 <p><strong>到期：</strong>${formatDateTime(item.expiresAt)}</p>
                 <p><strong>链接：</strong><a href="${escapeHtml(userLink)}" target="_blank" rel="noreferrer">${escapeHtml(userLink)}</a></p>
               </div>
@@ -253,12 +259,17 @@ function renderAdminPage(records, requestUrl) {
               <textarea name="note" rows="4" placeholder="例如：仅供 1 人使用，不要修改密码"></textarea>
             </label>
             <label>
-              <span>自定义 HTML 内容</span>
-              <textarea name="customHtml" rows="10" placeholder="<div class='your-box'>这里可以直接填写 HTML 代码</div>"></textarea>
+              <span>自定义内容（支持 Markdown / HTML / 整页 HTML）</span>
+              <textarea name="customHtml" rows="16" placeholder="# 标题&#10;&#10;这里可以写 Markdown，也可以混合 HTML。&#10;&#10;<div class='your-box'>HTML 片段也可以</div>&#10;&#10;或者直接粘贴整页网页源码：&#10;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;...&lt;/html&gt;"></textarea>
             </label>
-            <label>
-              <span>自定义 HTML 补充内容</span>
-              <textarea name="customHtml" rows="20" placeholder="<div class='your-box'>这里可以直接填写 HTML 代码</div>"></textarea>
+            <label class="helper-box">
+              <span>填写说明</span>
+              <div class="helper-copy">
+                <p>支持 3 种内容：</p>
+                <p>1. 普通 Markdown：标题、列表、链接、代码块都可以。</p>
+                <p>2. Markdown + HTML 混合：比如文字里插入表格、彩色按钮、卡片区块。</p>
+                <p>3. 整页 HTML 源码：包含 <code>&lt;!DOCTYPE html&gt;</code>、<code>&lt;html&gt;</code>、<code>&lt;head&gt;</code>、<code>&lt;style&gt;</code> 的完整页面也能直接显示。</p>
+              </div>
             </label>
             <label>
               <span>有效时长（小时）</span>
@@ -324,13 +335,7 @@ function renderAccountPage(record, origin) {
       `
     : "";
 
-  const customHtmlBlock = hasCustomHtml
-    ? `
-          <section class="custom-html-block">
-            ${record.customHtml}
-          </section>
-      `
-    : "";
+  const customContentBlock = hasCustomHtml ? renderCustomContent(record.customHtml, record.title) : "";
 
   return buildPageLayout({
     title: record.title,
@@ -346,6 +351,17 @@ function renderAccountPage(record, origin) {
             alert("复制失败，请手动复制");
           }
         }
+
+        window.addEventListener("message", function (event) {
+          if (!event || !event.data || event.data.type !== "account-page-frame-height") {
+            return;
+          }
+
+          var frames = document.querySelectorAll(".content-frame");
+          frames.forEach(function (frame) {
+            frame.style.height = Math.max(Number(event.data.height) || 720, 720) + "px";
+          });
+        });
       </script>
     `,
     body: `
@@ -360,7 +376,7 @@ function renderAccountPage(record, origin) {
           </div>
           ${defaultBlock}
           ${noteBlock}
-          ${customHtmlBlock || '<div class="note-box"><span>内容</span><p>当前没有填写更多自定义内容。</p></div>'}
+          ${customContentBlock || '<div class="note-box"><span>内容</span><p>当前没有填写更多自定义内容。</p></div>'}
           <div class="meta-row">
             <p><strong>专属链接：</strong>${escapeHtml(accountLink)}</p>
             <p><strong>失效时间：</strong>${formatDateTime(record.expiresAt)}</p>
@@ -423,6 +439,104 @@ function formatDateTime(value) {
   }
 
   return date.toLocaleString("zh-CN", { hour12: false });
+}
+
+function renderCustomContent(content, title) {
+  const normalized = String(content || "").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  if (looksLikeFullHtmlDocument(normalized)) {
+    const frameId = `frame-${crypto.randomUUID()}`;
+    const srcdoc = buildFrameSrcdoc(normalized, title);
+    return `
+      <section class="render-block">
+        <div class="render-head">
+          <span>自定义页面</span>
+          <strong>整页 HTML 模式</strong>
+        </div>
+        <iframe
+          id="${frameId}"
+          class="content-frame"
+          sandbox="allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"
+          srcdoc="${escapeHtml(srcdoc)}"
+          loading="lazy"
+        ></iframe>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="render-block">
+      <div class="render-head">
+        <span>自定义内容</span>
+        <strong>${escapeHtml(describeContentMode(normalized))}</strong>
+      </div>
+      <article class="custom-html-block prose-block">
+        ${renderMixedContent(normalized)}
+      </article>
+    </section>
+  `;
+}
+
+function describeContentMode(content) {
+  if (looksLikeFullHtmlDocument(content)) {
+    return "整页 HTML";
+  }
+
+  if (containsHtmlTags(content)) {
+    return "Markdown + HTML";
+  }
+
+  return "Markdown / 文本";
+}
+
+function looksLikeFullHtmlDocument(content) {
+  return /<!doctype html/i.test(content) || /<html[\s>]/i.test(content) || (/<head[\s>]/i.test(content) && /<body[\s>]/i.test(content));
+}
+
+function containsHtmlTags(content) {
+  return /<[a-z][\s\S]*>/i.test(content);
+}
+
+function renderMixedContent(content) {
+  return marked.parse(content);
+}
+
+function buildFrameSrcdoc(content, title) {
+  const heightScript = `
+    <script>
+      (function () {
+        function sendHeight() {
+          var body = document.body;
+          var doc = document.documentElement;
+          var height = Math.max(
+            body ? body.scrollHeight : 0,
+            body ? body.offsetHeight : 0,
+            doc ? doc.clientHeight : 0,
+            doc ? doc.scrollHeight : 0,
+            doc ? doc.offsetHeight : 0
+          );
+          parent.postMessage({ type: 'account-page-frame-height', height: height }, '*');
+        }
+        window.addEventListener('load', sendHeight);
+        window.addEventListener('resize', sendHeight);
+        setTimeout(sendHeight, 120);
+        setTimeout(sendHeight, 600);
+      }());
+    </script>
+  `;
+
+  if (/<\/body>/i.test(content)) {
+    return content.replace(/<\/body>/i, `${heightScript}</body>`);
+  }
+
+  if (/<\/html>/i.test(content)) {
+    return content.replace(/<\/html>/i, `${heightScript}</html>`);
+  }
+
+  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(title)}</title></head><body>${content}${heightScript}</body></html>`;
 }
 
 module.exports = {
